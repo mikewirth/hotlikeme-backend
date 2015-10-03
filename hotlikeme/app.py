@@ -84,7 +84,11 @@ user_schema = UserSchema()
 
 @app.route("/api/users/me")
 def get_current_user():
-    pass
+    if "userid" in session:
+        return jsonify(
+            user_schema.dump(User.query.get(session['userid'])).data
+        )
+    return jsonify({})
 
 
 @app.route('/api/users/<id>')
