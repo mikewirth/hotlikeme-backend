@@ -97,7 +97,11 @@ def users():
     elif request.method == 'POST':
         user = User(**user_schema.load(request.json).data)
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except orm.exc.FlushError:
+            db.session.rollback()
+            user = User.query.get(request.json['id'])
 
         resp = jsonify(user_schema.dump(user).data)
         resp.set_cookie("hotlikeme_userid", value=str(user.id))
