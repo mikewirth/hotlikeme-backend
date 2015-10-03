@@ -234,10 +234,18 @@ def update_comparison(comparison_id):
 
 @app.route('/api/couples')
 def top_couples():
-    res = db.engine.connect().execute("select * from Users")
-    for r in res:
-        print("lololol")
-    return "lol"
+    res = []
+    qry = db.engine.connect().execute("select male_id, female_id, count(*) as no_of_equals from Comparisons where outcome='equal' group by male_id, female_id order by count(*) desc limit 10")
+    for r in qry:
+        res_object = {
+                "male": user_schema.dump( User.query.get(r['male_id'])).data, 
+                "female": user_schema.dump(User.query.get(r['female_id'])).data,
+                "number_of_equals": r['no_of_equals']
+                }
+        res.append(res_object)
+
+    return jsonify({"results": res})
+    #return jsonify(results=user_schema.dump(res, many=True))
 
 
 if __name__ == '__main__':
@@ -250,7 +258,7 @@ if __name__ == '__main__':
         User(id=4, name="martina martinsson", profilePic="facbook.com/4", gender="female"),
         User(id=5, name="Max Mustermann", profilePic="facbook.com/5", gender="male", age=45),
         Comparison(evaluator_id=1, male_id=2, female_id=3),
-        Comparison(evaluator_id=2, male_id=1, female_id=3)
+        Comparison(evaluator_id=2, male_id=1, female_id=3, outcome="equal")
     ])
     db.session.commit()
 
