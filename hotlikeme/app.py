@@ -102,9 +102,9 @@ if __name__ == '__main__':
     db.drop_all()
     db.create_all()
     db.session.add_all([
-        User(name="Tim Tester", profilePic="facbook.com/1", age=25),
-        User(name="Tina Testerin", profilePic="facbook.com/2", age=30),
-        User(name="Max Mustermann", profilePic="facbook.com/3", age=45),
+        User(name="Tim Tester", profilePic="facbook.com/1", gender="male", age=25),
+        User(name="Tina Testerin", profilePic="facbook.com/2", gender="female"),
+        User(name="Max Mustermann", profilePic="facbook.com/3", gender="male", age=45),
         Comparison(evaluator_id=1, male_id=3, female_id=2),
     ])
     db.session.commit()
