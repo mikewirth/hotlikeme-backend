@@ -1,7 +1,8 @@
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
-from flask_potion import Api, ModelResource, fields, routes, resource
+from marshmallow import Schema, fields 
+
 
 
 app = Flask(__name__)
@@ -49,42 +50,31 @@ class Comparison(db.Model):
         default="open", server_default="open"
     )
 
-
 db.create_all()
 
-
-class UserResource(ModelResource):
-
+class UserSchema(Schema):
     class Meta:
         model = User
-        name = "users"
-        read_only_fields = ["matchRank", "exactMatches"]
+        fields = ('id', 'name', 'profilePic', 'age' )
+        sqla_session = db.session
+        
+user_schema = UserSchema()
 
-    class Schema:
-        matchRank = fields.Integer()
-        exactMatches = fields.Integer()
+@app.route('/api/users/<id>')
+def user_detail(id):
+    user = User.query.get(id)
+    res = user_schema.dump(user).data
+    return jsonify(res)
 
-    @routes.ItemRoute.GET("/matches", response_schema=fields.Inline('self'))
-    def user_matches(self, user):
-        user.calculateMatches()
-        return user
-
-
-class ComparisonResource(ModelResource):
-
-    class Meta:
-        model = Comparison
-        name = "comparisons"
-
-    class Schema:
-        evaluator = fields.ToOne("users")
-        male = fields.ToOne("users")
-        female = fields.ToOne("users")
-
-
-api = Api(app)
-api.add_resource(UserResource)
-api.add_resource(ComparisonResource)
+@app.route('/api/users', methods=['GET', 'POST'])
+def users():
+    if request.method == 'GET':
+        res = user_schema.dump( User.query.all(), many=True).data
+        return jsonify(results=res)
+    elif request.method == 'POST':
+        user = User(**user_schema.load(request.json).data)
+        db.session.add(user)
+        db.session.commit()
 
 if __name__ == '__main__':
     app.run(debug=True)
