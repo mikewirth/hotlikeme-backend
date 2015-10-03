@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import backref
+from sqlalchemy import orm, Index
 from marshmallow import Schema, fields
 
 
@@ -36,7 +36,7 @@ class Comparison(db.Model):
     evaluator_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
     evaluator = db.relationship(
         User, primaryjoin=evaluator_id == User.id,
-        backref=backref('comparisons', lazy='dynamic')
+        backref=orm.backref('comparisons', lazy='dynamic')
     )
 
     male_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
@@ -48,6 +48,10 @@ class Comparison(db.Model):
     outcome = db.Column(
         db.Enum("open", "equal", "male", "female"),
         default="open", server_default="open"
+    )
+
+    __table_args__ = (
+        Index(evaluator_id, male_id, female_id, unique=True),
     )
 
 
