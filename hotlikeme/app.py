@@ -98,11 +98,19 @@ class ComparisonSchema(Schema):
 comparison_schema = ComparisonSchema()
 
 
-@app.route('/api/comparisons')
+@app.route('/api/comparisons', methods=['GET', 'PUT'])
 def comparisons():
     if request.method == 'GET':
         res = comparison_schema.dump(Comparison.query.all(), many=True).data
         return jsonify(results=res)
+    elif request.method == 'PUT':
+        parameters = comparison_schema.load(request.json).data
+        comparison = Comparison.query.get(parameters['id'])
+        for k,v in parameters.iteritems():
+            setattr(comparison, k, v)
+        db.session.commit()
+        return jsonify( comparison_schema.dump(comparison).data )
+
 
 
 if __name__ == '__main__':
