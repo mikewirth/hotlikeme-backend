@@ -3,6 +3,7 @@ from flask.ext.cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import exc, orm, Index, func
 from marshmallow import Schema, fields
+from trueskill import Rating, rate_1vs1
 import random
 
 
@@ -39,7 +40,7 @@ class User(db.Model):
     age = db.Column(db.Integer)
 
     score = db.Column(db.Float, default=25.0, server_default="25.0")
-    sigma = db.Column(db.Float, default=25.0, server_default="25.0")
+    sigma = db.Column(db.Float, default=8.333, server_default="8.333")
 
     matchRank = None
     exactMatches = None
@@ -80,7 +81,7 @@ class Comparison(db.Model):
 class UserSchema(Schema):
     class Meta:
         model = User
-        fields = ('id', 'name', 'profilePic', 'age', 'gender')
+        fields = ('id', 'name', 'profilePic', 'age', 'gender', 'score', 'sigma')
         sqla_session = db.session
 
 user_schema = UserSchema()
@@ -197,7 +198,19 @@ def update_comparison(comparison_id):
         abort(400)
 
     comparison.outcome = outcome
-    # TODO(fubu): implement scoring based on "outcome"
+    
+    winner = getattr(comparison, comparison.outcome)
+    loser = getattr(comparison, "male" if outcome == "female" else "female")
+    winner_rat = Rating(mu=winner.score, sigma=winner.sigma)
+    loser_rat = Rating(mu=loser.score, sigma=loser.sigma)
+    new_winner_rat, new_loser_rat = rate_1vs1(winner_rat, loser_rat, drawn=True if outcome == "equal" else False)
+    print(winner)
+    print(loser)
+    setattr(winner, "score", new_winner_rat.mu)
+    setattr(winner, "sigma", new_winner_rat.sigma)
+    setattr(loser, "score", new_loser_rat.mu)
+    setattr(loser, "sigma", new_loser_rat.sigma)
+
 
     db.session.commit()
     return jsonify(comparison_schema.dump(comparison).data)
