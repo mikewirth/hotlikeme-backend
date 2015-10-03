@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, session, abort
 from flask.ext.cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import exc, orm, Index
+from sqlalchemy import exc, orm, Index, func, select
 from marshmallow import Schema, fields
 from trueskill import Rating, rate_1vs1
 
@@ -104,6 +104,21 @@ def user_detail(id):
 
     res = user_schema.dump(user).data
     return jsonify(res)
+
+
+@app.route("/api/users/<id>/matches")
+def get_user_matches(id):
+    user = User.query.get(id)
+    if user is None:
+        abort(404)
+
+    subqry = select([User.id]).order_by(
+        func.abs(User.score - user.score)
+    ).limit(5).alias()
+    best_matches = User.query.join(subqry, subqry.c.id == User.id).all()
+
+    res = user_schema.dump(best_matches, many=True).data
+    return jsonify(results=res)
 
 
 @app.route('/api/users', methods=['GET', 'POST', 'PUT'])
