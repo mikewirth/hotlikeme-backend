@@ -99,15 +99,27 @@ comparison_schema = ComparisonSchema()
 
 
 @app.route('/api/comparisons')
-def comparisons():
+def comparisons(comparison_id=None):
     evaluator_id = request.args.get('evaluator')
 
-    qry = Comparison.query
+    qry = Comparison.query.filter(Comparison.outcome == "open")
     if evaluator_id is not None:
         qry = qry.filter(Comparison.evaluator_id == int(evaluator_id))
 
     res = comparison_schema.dump(qry.all(), many=True).data
     return jsonify(results=res)
+
+
+@app.route('/api/comparisons/<int:comparison_id>', methods=['PUT'])
+def update_comparison(comparison_id):
+    comparison = Comparison.query.get(comparison_id)
+
+    data = comparison_schema.load(request.json).data
+    for k, v in data.iteritems():
+        setattr(comparison, k, v)
+    db.session.commit()
+
+    return jsonify(comparison_schema.dump(comparison).data)
 
 
 if __name__ == '__main__':
