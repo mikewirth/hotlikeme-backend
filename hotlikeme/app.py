@@ -64,7 +64,7 @@ class UserResource(ModelResource):
         matchRank = fields.Integer()
         exactMatches = fields.Integer()
 
-    @routes.ItemRoute.GET("/matches", response_schema=resource.Inline('self'))
+    @routes.ItemRoute.GET("/matches", response_schema=fields.Inline('self'))
     def user_matches(self, user):
         user.calculateMatches()
         return user
@@ -77,9 +77,9 @@ class ComparisonResource(ModelResource):
         name = "comparisons"
 
     class Schema:
-        evaluator = fields.Inline("users")
-        male = fields.Inline("users")
-        female = fields.Inline("users")
+        evaluator = fields.ToOne("users")
+        male = fields.ToOne("users")
+        female = fields.ToOne("users")
 
 
 api = Api(app)
