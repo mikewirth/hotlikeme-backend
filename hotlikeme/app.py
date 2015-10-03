@@ -17,6 +17,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(), nullable=False)
     profilePic = db.Column(db.String, nullable=False)
+    gender = db.Column(db.Enum("male", "female"), nullable=False)
     age = db.Column(db.Integer)
 
     matchRank = None
@@ -55,7 +56,7 @@ db.create_all()
 class UserSchema(Schema):
     class Meta:
         model = User
-        fields = ('id', 'name', 'profilePic', 'age' )
+        fields = ('id', 'name', 'profilePic', 'age', 'gender')
         sqla_session = db.session
         
 user_schema = UserSchema()
@@ -75,6 +76,7 @@ def users():
         user = User(**user_schema.load(request.json).data)
         db.session.add(user)
         db.session.commit()
+        return jsonify( user_schema.dump(user).data )
 
 if __name__ == '__main__':
     app.run(debug=True)
