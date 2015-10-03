@@ -1,10 +1,9 @@
 from flask import Flask, jsonify, request, session, abort
 from flask.ext.cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import exc, orm, Index, func
+from sqlalchemy import exc, orm, Index
 from marshmallow import Schema, fields
 from trueskill import Rating, rate_1vs1
-import random
 
 
 app = Flask(__name__)
@@ -12,9 +11,10 @@ app.config.update(
     SQLALCHEMY_DATABASE_URI="sqlite:///../test.db",
     SECRET_KEY="really-really-secret-key!",
     SESSION_COOKIE_HTTPONLY=False,
+    CORS_SUPPORTS_CREDENTIALS=True,
 )
 
-CORS(app)
+CORS(app, resources=r'/api/')
 
 db = SQLAlchemy(app)
 
@@ -22,9 +22,8 @@ db = SQLAlchemy(app)
 @app.before_request
 def set_current_user():
     if "userid" in session:
-        try:
-            User.query.get(int(session['userid']))
-        except ValueError:
+        user = User.query.get(int(session['userid']))
+        if user is None:
             session.pop('userid')
 
 
@@ -74,7 +73,8 @@ class Comparison(db.Model):
     )
 
     __table_args__ = (
-        Index(evaluator_id, male_id, female_id, unique=True),
+        Index("udx_single_comparisons", evaluator_id, male_id, female_id,
+              unique=True),
     )
 
 
@@ -89,11 +89,11 @@ user_schema = UserSchema()
 
 @app.route("/api/users/me")
 def get_current_user():
+    user = None
     if "userid" in session:
-        return jsonify(
-            user_schema.dump(User.query.get(session['userid'])).data
-        )
-    return jsonify({})
+        user = User.query.get(session['userid'])
+
+    return jsonify(user_schema.dump(user).data)
 
 
 @app.route('/api/users/<id>')
@@ -148,43 +148,56 @@ comparison_schema = ComparisonSchema()
 
 
 @app.route('/api/comparisons')
-def comparisons(comparison_id=None):
-    evaluator_id = request.args.get('evaluator')
+def comparisons():
+    NUM_NEW_COMPS = 10
 
-    qry = Comparison.query.filter(Comparison.outcome == "open")
+    evaluator_id = session.get('userid')
+    evaluator_comparisons_qry = Comparison.query.filter_by(evaluator_id=evaluator_id)
+
+    comparisons = []
     if evaluator_id is not None:
-        NUM_NEW_COMPS = 10
-        evaluator = User.query.get(evaluator_id)
-        qry = qry.filter(Comparison.evaluator_id == int(evaluator_id))
+        open_comparisons = evaluator_comparisons_qry.filter_by(outcome="open").all()
+        if len(open_comparisons) < NUM_NEW_COMPS:
+            # Get all existing comparisons
+            existing_comparisons = set(
+                (c.male_id, c.female_id) for c in evaluator_comparisons_qry
+            )
 
-        # If not yet NUM_NEW_COMPS open comparisons, generate some
-        if qry.count() < NUM_NEW_COMPS:
-            returned_comparisons = set()        # contains (<user male>, <user female>) tuples
+            # Get all users the evaluator has not yet compared
+            all_males = set()
+            all_females = set()
+            all_users = db.session.query(User.id, User.gender).filter(
+                User.id != evaluator_id
+            ).all()
+            for userid, gender in all_users:
+                target = all_males if gender == "male" else all_females
+                target.add(userid)
 
-            for c in qry:
-                returned_comparisons.add( (c.male, c.female) )
+            max_tries = (
+                (len(all_males) - 1) * (len(all_females) - 1)
+                - len(existing_comparisons)
+            )
+            tries = 0
+            while (len(open_comparisons) < NUM_NEW_COMPS and tries < max_tries):
+                tries += 1
 
-            users_without_evaluator = User.query.filter(User.id != evaluator.id)
-            males = users_without_evaluator.filter(User.gender == "male")
-            females = users_without_evaluator.filter(User.gender == "female")
+                male, female = all_males.pop(), all_females.pop()
+                if (male, female) in existing_comparisons:
+                    all_males.add(male)
+                    all_females.add(female)
+                    continue
 
-            print males.count()
-            print females.count()
-            
-            while len(returned_comparisons) < min(males.count() * females.count(), NUM_NEW_COMPS):
+                new_open_comparison = Comparison(
+                    evaluator_id=evaluator_id, male_id=male, female_id=female
+                )
+                db.session.add(new_open_comparison)
+                db.session.flush()
+                open_comparisons.append(new_open_comparison)
 
-                random_tuple = (random.sample(set(males),1)[0], random.sample(set(females),1)[0])
-                if not random_tuple in returned_comparisons:
-                    comp = Comparison()
-                    comp.evaluator = evaluator
-                    comp.male = random_tuple[0]
-                    comp.female = random_tuple[1] 
-                    db.session.add(comp)
-                    db.session.commit()
-                    returned_comparisons.add(random_tuple)
+        db.session.commit()
+        comparisons = comparison_schema.dump(open_comparisons, many=True).data
 
-    res = comparison_schema.dump(qry.all(), many=True).data
-    return jsonify(results=res)
+    return jsonify(results=comparisons)
 
 
 @app.route('/api/comparisons/<int:comparison_id>', methods=['PUT'])
