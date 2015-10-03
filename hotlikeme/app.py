@@ -1,12 +1,16 @@
-from flask import Flask, jsonify, request, g
+from flask import Flask, jsonify, request, session
 from flask.ext.cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import orm, Index
+from sqlalchemy import exc, orm, Index
 from marshmallow import Schema, fields
 
 
 app = Flask(__name__)
-app.config.update(SQLALCHEMY_DATABASE_URI="sqlite:///../test.db")
+app.config.update(
+    SQLALCHEMY_DATABASE_URI="sqlite:///../test.db",
+    SECRET_KEY="really-really-secret-key!",
+    SESSION_COOKIE_HTTPONLY=False,
+)
 
 CORS(app)
 
@@ -15,17 +19,11 @@ db = SQLAlchemy(app)
 
 @app.before_request
 def set_current_user():
-    userid = request.cookies.get("hotlikeme_userid")
-
-    user = None
-    if userid is not None:
+    if "userid" in session:
         try:
-            user = User.query.get(int(userid))
+            User.query.get(int(session['userid']))
         except ValueError:
-            user = None
-
-    print "current_user is", user
-    g.current_user = user
+            session.pop('userid')
 
 
 class User(db.Model):
@@ -84,6 +82,11 @@ class UserSchema(Schema):
 user_schema = UserSchema()
 
 
+@app.route("/api/users/me")
+def get_current_user():
+    pass
+
+
 @app.route('/api/users/<id>')
 def user_detail(id):
     user = User.query.get(id)
@@ -102,13 +105,12 @@ def users():
         db.session.add(user)
         try:
             db.session.commit()
-        except orm.exc.FlushError:
+        except exc.IntegrityError:
             db.session.rollback()
             user = User.query.get(request.json['id'])
 
-        resp = jsonify(user_schema.dump(user).data)
-        resp.set_cookie("hotlikeme_userid", value=str(user.id))
-        return resp
+        session['userid'] = user.id
+        return jsonify(user_schema.dump(user).data)
 
     elif request.method == 'PUT':
         parameters = user_schema.load(request.json).data
