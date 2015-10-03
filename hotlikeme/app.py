@@ -1,8 +1,7 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import backref
-from marshmallow import Schema, fields 
-
+from marshmallow import Schema, fields
 
 
 app = Flask(__name__)
@@ -51,14 +50,13 @@ class Comparison(db.Model):
         default="open", server_default="open"
     )
 
-db.create_all()
 
 class UserSchema(Schema):
     class Meta:
         model = User
         fields = ('id', 'name', 'profilePic', 'age', 'gender')
         sqla_session = db.session
-        
+
 user_schema = UserSchema()
 
 @app.route('/api/users/<id>')
@@ -70,7 +68,7 @@ def user_detail(id):
 @app.route('/api/users', methods=['GET', 'POST'])
 def users():
     if request.method == 'GET':
-        res = user_schema.dump( User.query.all(), many=True).data
+        res = user_schema.dump(User.query.all(), many=True).data
         return jsonify(results=res)
     elif request.method == 'POST':
         user = User(**user_schema.load(request.json).data)
@@ -78,5 +76,37 @@ def users():
         db.session.commit()
         return jsonify( user_schema.dump(user).data )
 
+
+class ComparisonSchema(Schema):
+
+    evaluator = fields.Nested(UserSchema)
+    male = fields.Nested(UserSchema)
+    female = fields.Nested(UserSchema)
+
+    class Meta:
+        model = Comparison
+        fields = ("id", "evaluator", "male", "female", "outcome")
+        sqla_session = db.session
+
+comparison_schema = ComparisonSchema()
+
+
+@app.route('/api/comparisons')
+def comparisons():
+    if request.method == 'GET':
+        res = comparison_schema.dump(Comparison.query.all(), many=True).data
+        return jsonify(results=res)
+
+
 if __name__ == '__main__':
+    db.drop_all()
+    db.create_all()
+    db.session.add_all([
+        User(name="Tim Tester", profilePic="facbook.com/1", gender="male", age=25),
+        User(name="Tina Testerin", profilePic="facbook.com/2", gender="female"),
+        User(name="Max Mustermann", profilePic="facbook.com/3", gender="male", age=45),
+        Comparison(evaluator_id=1, male_id=3, female_id=2),
+    ])
+    db.session.commit()
+
     app.run(debug=True)
