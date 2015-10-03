@@ -67,7 +67,7 @@ def user_detail(id):
     res = user_schema.dump(user).data
     return jsonify(res)
 
-@app.route('/api/users', methods=['GET', 'POST'])
+@app.route('/api/users', methods=['GET', 'POST', 'PUT'])
 def users():
     if request.method == 'GET':
         res = user_schema.dump( User.query.all(), many=True).data
@@ -75,6 +75,13 @@ def users():
     elif request.method == 'POST':
         user = User(**user_schema.load(request.json).data)
         db.session.add(user)
+        db.session.commit()
+        return jsonify( user_schema.dump(user).data )
+    elif request.method == 'PUT':
+        parameters = user_schema.load(request.json).data
+        user = User.query.get(parameters['id'])
+        for k,v in parameters.iteritems():
+            setattr(user, k, v)
         db.session.commit()
         return jsonify( user_schema.dump(user).data )
 
