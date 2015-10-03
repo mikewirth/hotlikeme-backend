@@ -102,7 +102,7 @@ class ComparisonSchema(Schema):
 comparison_schema = ComparisonSchema()
 
 
-@app.route('/api/comparisons', methods=['GET', 'PUT'])
+@app.route('/api/comparisons')
 def comparisons(comparison_id=None):
     evaluator_id = request.args.get('evaluator')
 
@@ -110,16 +110,8 @@ def comparisons(comparison_id=None):
     if evaluator_id is not None:
         qry = qry.filter(Comparison.evaluator_id == int(evaluator_id))
 
-    	res = comparison_schema.dump(qry.all(), many=True).data
-    	return jsonify(results=res)
-    elif request.method == 'PUT':
-        parameters = comparison_schema.load(request.json).data
-        comparison = Comparison.query.get(parameters['id'])
-        for k,v in parameters.iteritems():
-            setattr(comparison, k, v)
-        db.session.commit()
-        return jsonify( comparison_schema.dump(comparison).data )
-
+    res = comparison_schema.dump(qry.all(), many=True).data
+    return jsonify(results=res)
 
 
 @app.route('/api/comparisons/<int:comparison_id>', methods=['PUT'])
