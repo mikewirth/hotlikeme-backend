@@ -3,3 +3,4 @@ marshmallow==2.1.0
 ipython==4.0.0
 SQLAlchemy==1.0.8
 Flask-SQLAlchemy==2.0
+Flask-Cors==2.1.0
