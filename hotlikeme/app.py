@@ -212,8 +212,12 @@ def update_comparison(comparison_id):
 
     comparison.outcome = outcome
     
-    winner = getattr(comparison, comparison.outcome)
-    loser = getattr(comparison, "male" if outcome == "female" else "female")
+    if outcome == "equal":
+        winner = getattr(comparison, "male")
+        loser = getattr(comparison, "female")
+    else:
+        winner = getattr(comparison, comparison.outcome)
+        loser = getattr(comparison, "male" if outcome == "female" else "female")
     winner_rat = Rating(mu=winner.score, sigma=winner.sigma)
     loser_rat = Rating(mu=loser.score, sigma=loser.sigma)
     new_winner_rat, new_loser_rat = rate_1vs1(winner_rat, loser_rat, drawn=True if outcome == "equal" else False)
@@ -239,15 +243,15 @@ def top_couples():
 if __name__ == '__main__':
     db.drop_all()
     db.create_all()
-    #db.session.add_all([
-    #    User(id=1, name="Tim Tester", profilePic="facbook.com/1", gender="male", age=25),
-    #    User(id=2, name="Bruce Wayne", profilePic="facbook.com/2", gender="male", age=40),
-    #    User(id=3, name="tina testerin", profilePic="facbook.com/2", gender="female"),
-    #    User(id=4, name="martina martinsson", profilePic="facbook.com/4", gender="female"),
-    #    User(id=5, name="Max Mustermann", profilePic="facbook.com/5", gender="male", age=45),
-    #    Comparison(evaluator_id=1, male_id=2, female_id=3),
-    #    Comparison(evaluator_id=2, male_id=1, female_id=3)
-    #])
+    db.session.add_all([
+        User(id=1, name="Tim Tester", profilePic="facbook.com/1", gender="male", age=25),
+        User(id=2, name="Bruce Wayne", profilePic="facbook.com/2", gender="male", age=40),
+        User(id=3, name="tina testerin", profilePic="facbook.com/2", gender="female"),
+        User(id=4, name="martina martinsson", profilePic="facbook.com/4", gender="female"),
+        User(id=5, name="Max Mustermann", profilePic="facbook.com/5", gender="male", age=45),
+        Comparison(evaluator_id=1, male_id=2, female_id=3),
+        Comparison(evaluator_id=2, male_id=1, female_id=3)
+    ])
     db.session.commit()
 
     app.run(host="0.0.0.0", debug=True)
