@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request, g
+from flask.ext.cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import orm, Index
 from marshmallow import Schema, fields
@@ -6,6 +7,8 @@ from marshmallow import Schema, fields
 
 app = Flask(__name__)
 app.config.update(SQLALCHEMY_DATABASE_URI="sqlite:///../test.db")
+
+CORS(app)
 
 db = SQLAlchemy(app)
 
