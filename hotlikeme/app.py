@@ -99,13 +99,12 @@ comparison_schema = ComparisonSchema()
 
 
 @app.route('/api/comparisons', methods=['GET', 'PUT'])
-def comparisons():
-    if request.method == 'GET':
-    	evaluator_id = request.args.get('evaluator')
+def comparisons(comparison_id=None):
+    evaluator_id = request.args.get('evaluator')
 
-    	qry = Comparison.query
-    	if evaluator_id is not None:
-        	qry = qry.filter(Comparison.evaluator_id == int(evaluator_id))
+    qry = Comparison.query.filter(Comparison.outcome == "open")
+    if evaluator_id is not None:
+        qry = qry.filter(Comparison.evaluator_id == int(evaluator_id))
 
     	res = comparison_schema.dump(qry.all(), many=True).data
     	return jsonify(results=res)
@@ -117,6 +116,18 @@ def comparisons():
         db.session.commit()
         return jsonify( comparison_schema.dump(comparison).data )
 
+
+
+@app.route('/api/comparisons/<int:comparison_id>', methods=['PUT'])
+def update_comparison(comparison_id):
+    comparison = Comparison.query.get(comparison_id)
+
+    data = comparison_schema.load(request.json).data
+    for k, v in data.iteritems():
+        setattr(comparison, k, v)
+    db.session.commit()
+
+    return jsonify(comparison_schema.dump(comparison).data)
 
 
 if __name__ == '__main__':
