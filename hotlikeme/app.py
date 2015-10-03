@@ -151,7 +151,7 @@ comparison_schema = ComparisonSchema()
 def comparisons():
     NUM_NEW_COMPS = 10
 
-    evaluator_id = session.get('userid')
+    evaluator_id = session.get('userid') or request.args.get('userid')
     evaluator_comparisons_qry = Comparison.query.filter_by(evaluator_id=evaluator_id)
 
     comparisons = []
