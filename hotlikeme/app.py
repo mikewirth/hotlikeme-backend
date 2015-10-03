@@ -1,7 +1,8 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import orm, Index
+from sqlalchemy import orm, Index, func
 from marshmallow import Schema, fields
+import random
 
 
 app = Flask(__name__)
@@ -108,7 +109,35 @@ def comparisons(comparison_id=None):
 
     qry = Comparison.query.filter(Comparison.outcome == "open")
     if evaluator_id is not None:
+        NUM_NEW_COMPS = 10
+        evaluator = User.query.get(evaluator_id)
         qry = qry.filter(Comparison.evaluator_id == int(evaluator_id))
+
+        # If not yet NUM_NEW_COMPS open comparisons, generate some
+        if qry.count() < NUM_NEW_COMPS:
+            returned_comparisons = set()        # contains (<user male>, <user female>) tuples
+
+            for c in qry:
+                returned_comparisons.add( (c.male, c.female) )
+
+            users_without_evaluator = User.query.filter(User.id != evaluator.id)
+            males = users_without_evaluator.filter(User.gender == "male")
+            females = users_without_evaluator.filter(User.gender == "female")
+
+            print males.count()
+            print females.count()
+            
+            while len(returned_comparisons) < min(males.count() * females.count(), NUM_NEW_COMPS):
+
+                random_tuple = (random.sample(set(males),1)[0], random.sample(set(females),1)[0])
+                if not random_tuple in returned_comparisons:
+                    comp = Comparison()
+                    comp.evaluator = evaluator
+                    comp.male = random_tuple[0]
+                    comp.female = random_tuple[1] 
+                    db.session.add(comp)
+                    db.session.commit()
+                    returned_comparisons.add(random_tuple)
 
     res = comparison_schema.dump(qry.all(), many=True).data
     return jsonify(results=res)
@@ -130,11 +159,13 @@ if __name__ == '__main__':
     db.drop_all()
     db.create_all()
     db.session.add_all([
-        User(name="Tim Tester", profilePic="facbook.com/1", gender="male", age=25),
-        User(name="Tina Testerin", profilePic="facbook.com/2", gender="female"),
-        User(name="Max Mustermann", profilePic="facbook.com/3", gender="male", age=45),
-        Comparison(evaluator_id=1, male_id=3, female_id=2),
-        Comparison(evaluator_id=3, male_id=1, female_id=2),
+        User(id=1, name="Tim Tester", profilePic="facbook.com/1", gender="male", age=25),
+        User(id=2, name="Bruce Wayne", profilePic="facbook.com/2", gender="male", age=40),
+        user(id=3, name="tina testerin", profilepic="facbook.com/2", gender="female"),
+        user(id=4, name="martina martinsson", profilepic="facbook.com/4", gender="female"),
+        User(id=5, name="Max Mustermann", profilePic="facbook.com/5", gender="male", age=45),
+        Comparison(evaluator_id=1, male_id=2, female_id=3),
+        Comparison(evaluator_id=2, male_id=1, female_id=3)
     ])
     db.session.commit()
 
