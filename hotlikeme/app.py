@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, session
+from flask import Flask, jsonify, request, session, abort
 from flask.ext.cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import exc, orm, Index, func
@@ -37,6 +37,9 @@ class User(db.Model):
     profilePic = db.Column(db.String, nullable=False)
     gender = db.Column(db.Enum("male", "female"), nullable=False)
     age = db.Column(db.Integer)
+
+    score = db.Column(db.Float, default=25.0, server_default="25.0")
+    sigma = db.Column(db.Float, default=25.0, server_default="25.0")
 
     matchRank = None
     exactMatches = None
@@ -95,6 +98,9 @@ def get_current_user():
 @app.route('/api/users/<id>')
 def user_detail(id):
     user = User.query.get(id)
+    if user is None:
+        abort(404)
+
     res = user_schema.dump(user).data
     return jsonify(res)
 
@@ -183,12 +189,17 @@ def comparisons(comparison_id=None):
 @app.route('/api/comparisons/<int:comparison_id>', methods=['PUT'])
 def update_comparison(comparison_id):
     comparison = Comparison.query.get(comparison_id)
+    if comparison is None:
+        abort(404)
 
-    data = comparison_schema.load(request.json).data
-    for k, v in data.iteritems():
-        setattr(comparison, k, v)
+    outcome = request.json.get('outcome')
+    if outcome in (None, "open"):
+        abort(400)
+
+    comparison.outcome = outcome
+    # TODO(fubu): implement scoring based on "outcome"
+
     db.session.commit()
-
     return jsonify(comparison_schema.dump(comparison).data)
 
 
