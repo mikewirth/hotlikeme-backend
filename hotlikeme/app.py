@@ -101,8 +101,14 @@ comparison_schema = ComparisonSchema()
 @app.route('/api/comparisons', methods=['GET', 'PUT'])
 def comparisons():
     if request.method == 'GET':
-        res = comparison_schema.dump(Comparison.query.all(), many=True).data
-        return jsonify(results=res)
+    	evaluator_id = request.args.get('evaluator')
+
+    	qry = Comparison.query
+    	if evaluator_id is not None:
+        	qry = qry.filter(Comparison.evaluator_id == int(evaluator_id))
+
+    	res = comparison_schema.dump(qry.all(), many=True).data
+    	return jsonify(results=res)
     elif request.method == 'PUT':
         parameters = comparison_schema.load(request.json).data
         comparison = Comparison.query.get(parameters['id'])
@@ -121,7 +127,8 @@ if __name__ == '__main__':
         User(name="Tina Testerin", profilePic="facbook.com/2", gender="female"),
         User(name="Max Mustermann", profilePic="facbook.com/3", gender="male", age=45),
         Comparison(evaluator_id=1, male_id=3, female_id=2),
+        Comparison(evaluator_id=3, male_id=1, female_id=2),
     ])
     db.session.commit()
 
-    app.run(debug=True)
+    app.run(host="0.0.0.0", debug=True)
