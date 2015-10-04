@@ -33,8 +33,8 @@ class User(db.Model):
     # The user id is the facebook id of the user
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=False)
 
-    name = db.Column(db.String(), nullable=False)
-    profilePic = db.Column(db.String, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    profilePic = db.Column(db.String(250), nullable=False)
     gender = db.Column(db.Enum("male", "female"), nullable=False)
     age = db.Column(db.Integer)
 
@@ -55,16 +55,16 @@ class Comparison(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    evaluator_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    evaluator_id = db.Column(db.BigInteger, db.ForeignKey(User.id), nullable=False)
     evaluator = db.relationship(
         User, primaryjoin=evaluator_id == User.id,
         backref=orm.backref('comparisons', lazy='dynamic')
     )
 
-    male_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    male_id = db.Column(db.BigInteger, db.ForeignKey(User.id), nullable=False)
     male = db.relationship(User, primaryjoin=male_id == User.id)
 
-    female_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    female_id = db.Column(db.BigInteger, db.ForeignKey(User.id), nullable=False)
     female = db.relationship(User, primaryjoin=female_id == User.id)
 
     outcome = db.Column(
@@ -112,7 +112,9 @@ def get_user_matches(id):
     if user is None:
         abort(404)
 
-    subqry = select([User.id]).order_by(
+    subqry = select([User.id]).where(
+        User.gender != user.gender
+    ).order_by(
         func.abs(User.score - user.score)
     ).limit(5).alias()
     best_matches = User.query.join(subqry, subqry.c.id == User.id).all()
@@ -226,46 +228,54 @@ def update_comparison(comparison_id):
         abort(400)
 
     comparison.outcome = outcome
-    
-    if outcome == "equal":
-        winner = getattr(comparison, "male")
-        loser = getattr(comparison, "female")
-    else:
-        winner = getattr(comparison, comparison.outcome)
-        loser = getattr(comparison, "male" if outcome == "female" else "female")
+
+    winner, loser = comparison.male, comparison.female
+    if outcome == "female":
+        winner, loser = loser, winner
+
     winner_rat = Rating(mu=winner.score, sigma=winner.sigma)
     loser_rat = Rating(mu=loser.score, sigma=loser.sigma)
-    new_winner_rat, new_loser_rat = rate_1vs1(winner_rat, loser_rat, drawn=True if outcome == "equal" else False)
-    print(winner)
-    print(loser)
-    setattr(winner, "score", new_winner_rat.mu)
-    setattr(winner, "sigma", new_winner_rat.sigma)
-    setattr(loser, "score", new_loser_rat.mu)
-    setattr(loser, "sigma", new_loser_rat.sigma)
+    new_winner_rat, new_loser_rat = rate_1vs1(
+        winner_rat, loser_rat, drawn=True if outcome == "equal" else False
+    )
 
+    winner.score = new_winner_rat.mu
+    winner.sigma = new_winner_rat.sigma
+
+    loser.score = new_loser_rat.mu
+    loser.sigma = new_loser_rat.sigma
 
     db.session.commit()
     return jsonify(comparison_schema.dump(comparison).data)
 
+
 @app.route('/api/couples')
 def top_couples():
-    res = []
-    qry = db.engine.connect().execute("select male_id, female_id, count(*) as no_of_equals from Comparisons where outcome='equal' group by male_id, female_id order by count(*) desc limit 10")
-    for r in qry:
-        res_object = {
-                "male": user_schema.dump( User.query.get(r['male_id'])).data, 
-                "female": user_schema.dump(User.query.get(r['female_id'])).data,
-                "number_of_equals": r['no_of_equals']
-                }
-        res.append(res_object)
+    results = []
 
-    return jsonify({"results": res})
-    #return jsonify(results=user_schema.dump(res, many=True))
+    couples = db.engine.execute(
+        "SELECT male_id, female_id, COUNT(*) AS no_of_equals"
+        "  FROM Comparisons WHERE outcome = 'equal'"
+        "  GROUP BY male_id, female_id"
+        "  ORDER BY COUNT(*) DESC LIMIT 10"
+    )
+    for r in couples.fetchall():
+        results.append({
+            'male': user_schema.dump(User.query.get(r.male_id)).data,
+            'female': user_schema.dump(User.query.get(r.female_id)).data,
+            'number_of_equals': r.no_of_equals,
+        })
+
+    return jsonify(results=results)
+
+
+@app.route("/leDatabase", methods=["DELETE"])
+def reset_db():
+    db.drop_all()
+    db.create_all()
 
 
 if __name__ == '__main__':
     db.drop_all()
     db.create_all()
-    db.session.commit()
-
     app.run(host="0.0.0.0", debug=True)
