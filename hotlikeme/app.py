@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import exc, orm, Index, func, select
 from marshmallow import Schema, fields
 from trueskill import Rating, rate_1vs1
+import random
 
 
 app = Flask(__name__)
@@ -49,7 +50,7 @@ class User(db.Model):
         if low == high:
             return 10
 
-        return (self.score - low) / (high - low)
+        return (self.score - low) / (high - low) * 10
 
 
 class Comparison(db.Model):
@@ -183,14 +184,17 @@ def comparisons():
             )
 
             # Get all users the evaluator has not yet compared
-            all_males = set()
-            all_females = set()
+            all_males = []
+            all_females = []
             all_users = db.session.query(User.id, User.gender).filter(
                 User.id != evaluator_id
             ).all()
             for userid, gender in all_users:
                 target = all_males if gender == "male" else all_females
-                target.add(userid)
+                target.append(userid)
+
+            random.shuffle(all_males)
+            random.shuffle(all_females)
 
             max_tries = (
                 (len(all_males) - 1) * (len(all_females) - 1)
@@ -200,10 +204,10 @@ def comparisons():
             while (len(open_comparisons) < NUM_NEW_COMPS and tries < max_tries):
                 tries += 1
 
-                male, female = all_males.pop(), all_females.pop()
+                male, female = all_males.pop(0), all_females.pop(0)
                 if (male, female) in existing_comparisons:
-                    all_males.add(male)
-                    all_females.add(female)
+                    all_males.append(male)
+                    all_females.append(female)
                     continue
 
                 new_open_comparison = Comparison(
@@ -275,6 +279,7 @@ def top_couples():
 def reset_db():
     db.drop_all()
     db.create_all()
+    return "ok!"
 
 
 if __name__ == '__main__':
