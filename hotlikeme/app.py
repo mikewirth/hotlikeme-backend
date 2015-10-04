@@ -41,13 +41,15 @@ class User(db.Model):
     score = db.Column(db.Float, default=25.0, server_default="25.0")
     sigma = db.Column(db.Float, default=8.333, server_default="8.333")
 
-    matchRank = None
-    exactMatches = None
+    @property
+    def hotness(self):
+        minmax = db.engine.execute("SELECT MIN(score), MAX(score) FROM Users")
 
-    def calculateMatches(self):
-        # TODO(fubu): calculate real values
-        self.matchRank = 10
-        self.exactMatches = 5
+        low, high = minmax.fetchone()
+        if low == high:
+            return 10
+
+        return (self.score - low) / (high - low)
 
 
 class Comparison(db.Model):
@@ -81,7 +83,7 @@ class Comparison(db.Model):
 class UserSchema(Schema):
     class Meta:
         model = User
-        fields = ('id', 'name', 'profilePic', 'age', 'gender', 'score', 'sigma')
+        fields = ('id', 'name', 'profilePic', 'age', 'gender', 'score', 'sigma', 'hotness')
         sqla_session = db.session
 
 user_schema = UserSchema()
