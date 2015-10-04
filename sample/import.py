@@ -1,12 +1,14 @@
 import os
 import random
 
-URL = "172.27.0.50:5000/api/users"
-URL = ":5000/api/users"
+#URL = "172.27.0.50:5000/api/users"
+#URL = ":5000/api/users"
+URL = "http://ec2-52-28-68-232.eu-central-1.compute.amazonaws.com/api/users"
+#URL = ":5000/api/users"
 REMOTE_URL = "ec2-52-28-68-232.eu-central-1.compute.amazonaws.com"
 
-male_names = ["Sebastian Stephan", "Michael Wirth", "Fabian Brun", "Robert Erdin", "Raphael Stanger","Fabio Schmid","Roman Ahrendt","Pascal Heid","David Sacher","Nikolaus Strassmann","Alessandro Buechel","Detlef Degen","Justin Hinrichs","Roman Feilhaber","Tilman Kornhaus"]
-female_names = ["Rachel Gaertner","Sabine Rademacher","Leandra Cossmann","Corinne Rathenau","Nadine Gasser","Sophie Friedemann","Yvonne Frosch","Marlen Feulner","Isabell Kuttner","Michele Aach","Tanja Steitz","Juliane Scherrer","Tamara Felgenhauer","Patricia Storl"]
+male_names = ["Renzo Iten", "Michel Baschnagel", "Theo Erdmann", "Dominik Frei", "Raphael Stanger","Fabio Schmid","Roman Ahrendt","Pascal Heid","David Sacher","Nikolaus Strassmann","Alessandro Buechel","Detlef Degen","Justin Hinrichs","Roman Feilhaber","Tilman Kornhaus"]
+female_names = ["Rachel Gaertner","Fiona Hostetter","Anabel Marques","Sophie Bayley", "Sabine Rademacher","Leandra Cossmann","Corinne Rathenau","Nadine Gasser","Sophie Friedemann","Yvonne Frosch","Marlen Feulner","Isabell Kuttner","Michele Aach","Tanja Steitz","Juliane Scherrer","Tamara Felgenhauer","Patricia Storl"]
 
 random.shuffle(male_names)
 random.shuffle(female_names)
