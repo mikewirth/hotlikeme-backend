@@ -112,7 +112,9 @@ def get_user_matches(id):
     if user is None:
         abort(404)
 
-    subqry = select([User.id]).order_by(
+    subqry = select([User.id]).where(
+        User.gender != user.gender
+    ).order_by(
         func.abs(User.score - user.score)
     ).limit(5).alias()
     best_matches = User.query.join(subqry, subqry.c.id == User.id).all()
@@ -241,9 +243,9 @@ def update_comparison(comparison_id):
     setattr(loser, "score", new_loser_rat.mu)
     setattr(loser, "sigma", new_loser_rat.sigma)
 
-
     db.session.commit()
     return jsonify(comparison_schema.dump(comparison).data)
+
 
 @app.route('/api/couples')
 def top_couples():
@@ -264,6 +266,4 @@ def top_couples():
 if __name__ == '__main__':
     db.drop_all()
     db.create_all()
-    db.session.commit()
-
     app.run(host="0.0.0.0", debug=True)
