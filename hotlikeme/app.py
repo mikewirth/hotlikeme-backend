@@ -33,8 +33,8 @@ class User(db.Model):
     # The user id is the facebook id of the user
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=False)
 
-    name = db.Column(db.String(), nullable=False)
-    profilePic = db.Column(db.String, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    profilePic = db.Column(db.String(250), nullable=False)
     gender = db.Column(db.Enum("male", "female"), nullable=False)
     age = db.Column(db.Integer)
 
@@ -55,16 +55,16 @@ class Comparison(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    evaluator_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    evaluator_id = db.Column(db.BigInteger, db.ForeignKey(User.id), nullable=False)
     evaluator = db.relationship(
         User, primaryjoin=evaluator_id == User.id,
         backref=orm.backref('comparisons', lazy='dynamic')
     )
 
-    male_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    male_id = db.Column(db.BigInteger, db.ForeignKey(User.id), nullable=False)
     male = db.relationship(User, primaryjoin=male_id == User.id)
 
-    female_id = db.Column(db.Integer, db.ForeignKey(User.id), nullable=False)
+    female_id = db.Column(db.BigInteger, db.ForeignKey(User.id), nullable=False)
     female = db.relationship(User, primaryjoin=female_id == User.id)
 
     outcome = db.Column(
@@ -236,8 +236,6 @@ def update_comparison(comparison_id):
     winner_rat = Rating(mu=winner.score, sigma=winner.sigma)
     loser_rat = Rating(mu=loser.score, sigma=loser.sigma)
     new_winner_rat, new_loser_rat = rate_1vs1(winner_rat, loser_rat, drawn=True if outcome == "equal" else False)
-    print(winner)
-    print(loser)
     setattr(winner, "score", new_winner_rat.mu)
     setattr(winner, "sigma", new_winner_rat.sigma)
     setattr(loser, "score", new_loser_rat.mu)
