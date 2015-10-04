@@ -254,16 +254,16 @@ def top_couples():
     results = []
 
     couples = db.engine.execute(
-        "SELECT male_id female_id, COUNT(*) as no_of_equals"
+        "SELECT male_id, female_id, COUNT(*) AS no_of_equals"
         "  FROM Comparisons WHERE outcome = 'equal'"
         "  GROUP BY male_id, female_id"
         "  ORDER BY COUNT(*) DESC LIMIT 10"
     )
     for r in couples.fetchall():
         results.append({
-            'male': user_schema.dump(User.query.get(r['male_id'])).data,
-            'female': user_schema.dump(User.query.get(r['female_id'])).data,
-            'number_of_equals': r['no_of_equals'],
+            'male': user_schema.dump(User.query.get(r.male_id)).data,
+            'female': user_schema.dump(User.query.get(r.female_id)).data,
+            'number_of_equals': r.no_of_equals,
         })
 
     return jsonify(results=results)
