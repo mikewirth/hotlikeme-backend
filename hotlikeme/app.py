@@ -228,20 +228,22 @@ def update_comparison(comparison_id):
         abort(400)
 
     comparison.outcome = outcome
-    
-    if outcome == "equal":
-        winner = getattr(comparison, "male")
-        loser = getattr(comparison, "female")
-    else:
-        winner = getattr(comparison, comparison.outcome)
-        loser = getattr(comparison, "male" if outcome == "female" else "female")
+
+    winner, loser = comparison.male, comparison.female
+    if outcome == "female":
+        winner, loser = loser, winner
+
     winner_rat = Rating(mu=winner.score, sigma=winner.sigma)
     loser_rat = Rating(mu=loser.score, sigma=loser.sigma)
-    new_winner_rat, new_loser_rat = rate_1vs1(winner_rat, loser_rat, drawn=True if outcome == "equal" else False)
-    setattr(winner, "score", new_winner_rat.mu)
-    setattr(winner, "sigma", new_winner_rat.sigma)
-    setattr(loser, "score", new_loser_rat.mu)
-    setattr(loser, "sigma", new_loser_rat.sigma)
+    new_winner_rat, new_loser_rat = rate_1vs1(
+        winner_rat, loser_rat, drawn=True if outcome == "equal" else False
+    )
+
+    winner.score = new_winner_rat.mu
+    winner.sigma = new_winner_rat.sigma
+
+    loser.score = new_loser_rat.mu
+    loser.sigma = new_loser_rat.sigma
 
     db.session.commit()
     return jsonify(comparison_schema.dump(comparison).data)
@@ -249,18 +251,28 @@ def update_comparison(comparison_id):
 
 @app.route('/api/couples')
 def top_couples():
-    res = []
-    qry = db.engine.connect().execute("select male_id, female_id, count(*) as no_of_equals from Comparisons where outcome='equal' group by male_id, female_id order by count(*) desc limit 10")
-    for r in qry:
-        res_object = {
-                "male": user_schema.dump( User.query.get(r['male_id'])).data, 
-                "female": user_schema.dump(User.query.get(r['female_id'])).data,
-                "number_of_equals": r['no_of_equals']
-                }
-        res.append(res_object)
+    results = []
 
-    return jsonify({"results": res})
-    #return jsonify(results=user_schema.dump(res, many=True))
+    couples = db.engine.execute(
+        "SELECT male_id female_id, COUNT(*) as no_of_equals"
+        "  FROM Comparisons WHERE outcome = 'equal'"
+        "  GROUP BY male_id, female_id"
+        "  ORDER BY COUNT(*) DESC LIMIT 10"
+    )
+    for r in couples.fetchall():
+        results.append({
+            'male': user_schema.dump(User.query.get(r.male_id)).data,
+            'female': user_schema.dump(User.query.get(r.female_id)).data,
+            'number_of_equals': r.no_of_equals,
+        })
+
+    return jsonify(results=results)
+
+
+@app.route("/leDatabase", methods=["DELETE"])
+def reset_db():
+    db.drop_all()
+    db.create_all()
 
 
 if __name__ == '__main__':
