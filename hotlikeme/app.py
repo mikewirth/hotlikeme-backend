@@ -261,9 +261,9 @@ def top_couples():
     )
     for r in couples.fetchall():
         results.append({
-            'male': user_schema.dump(User.query.get(r.male_id)).data,
-            'female': user_schema.dump(User.query.get(r.female_id)).data,
-            'number_of_equals': r.no_of_equals,
+            'male': user_schema.dump(User.query.get(r['male_id'])).data,
+            'female': user_schema.dump(User.query.get(r['female_id'])).data,
+            'number_of_equals': r['no_of_equals'],
         })
 
     return jsonify(results=results)
